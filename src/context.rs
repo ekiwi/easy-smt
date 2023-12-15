@@ -147,7 +147,6 @@ impl ContextBuilder {
         };
 
         if ctx.solver.is_some() {
-            ctx.set_option(":print-success", ctx.true_())?;
             ctx.set_option(":produce-models", ctx.true_())?;
         }
 

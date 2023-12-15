@@ -1,11 +1,11 @@
 use crate::sexpr::{Arena, Parser, SExpr};
 use std::ffi;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 use std::process;
 
 pub(crate) struct Solver {
     _handle: process::Child,
-    stdin: process::ChildStdin,
+    stdin: io::BufWriter<process::ChildStdin>,
     stdout: io::Lines<io::BufReader<process::ChildStdout>>,
     replay_file: Box<dyn io::Write>,
     parser: Parser,
@@ -27,7 +27,7 @@ impl Solver {
 
         Ok(Self {
             _handle: handle,
-            stdin,
+            stdin: io::BufWriter::new(stdin),
             stdout: io::BufReader::new(stdout).lines(),
             replay_file,
             parser: Parser::new(),
@@ -42,6 +42,7 @@ impl Solver {
     }
 
     pub fn recv(&mut self, arena: &Arena) -> io::Result<SExpr> {
+        self.stdin.flush()?;
         self.parser.reset();
 
         for line in self.stdout.by_ref() {
@@ -59,15 +60,6 @@ impl Solver {
     }
 
     pub fn ack_command(&mut self, arena: &Arena, success: SExpr, c: SExpr) -> io::Result<()> {
-        self.send(arena, c)?;
-        let resp = self.recv(arena)?;
-        if resp == success {
-            Ok(())
-        } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Unexpected result from solver: {}", arena.display(resp)),
-            ))
-        }
+        self.send(arena, c)
     }
 }
